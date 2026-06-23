@@ -1,0 +1,518 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Invoice Manager — Cloud</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+  :root {
+    --bg:#F7F8FA; --surface:#FFFFFF; --surface2:#F0F2F5; --border:#E2E6EA; --border-strong:#C8CDD4;
+    --text-primary:#1A1D23; --text-secondary:#6B7280; --text-muted:#9CA3AF;
+    --accent:#2563EB; --accent-light:#EFF6FF; --accent-hover:#1D4ED8;
+    --danger:#DC2626; --danger-light:#FEF2F2; --success:#059669; --success-light:#ECFDF5;
+    --warning:#D97706; --warning-light:#FFFBEB; --calc-bg:#F3F4F6; --calc-border:#D1D5DB;
+    --shadow-sm:0 1px 3px rgba(0,0,0,.06),0 1px 2px rgba(0,0,0,.04); --radius:10px; --radius-sm:6px;
+  }
+  * { box-sizing:border-box; margin:0; padding:0; }
+  body { font-family:'Inter',-apple-system,sans-serif; background:var(--bg); color:var(--text-primary); min-height:100vh; font-size:14px; line-height:1.5; }
+
+  .nav { background:var(--surface); border-bottom:1px solid var(--border); position:sticky; top:0; z-index:100; box-shadow:var(--shadow-sm); }
+  .nav-inner { max-width:1600px; margin:0 auto; padding:0 16px; display:flex; align-items:center; height:56px; gap:4px; }
+  .nav-brand { font-weight:700; font-size:15px; margin-right:20px; letter-spacing:-.3px; white-space:nowrap; }
+  .nav-brand span { color:var(--accent); }
+  .tab-btn { background:none; border:none; cursor:pointer; font-family:inherit; font-size:13px; font-weight:500; color:var(--text-secondary); padding:0 14px; height:56px; border-bottom:2px solid transparent; transition:color .15s,border-color .15s; white-space:nowrap; }
+  .tab-btn:hover { color:var(--text-primary); }
+  .tab-btn.active { color:var(--accent); border-bottom-color:var(--accent); }
+  .nav-right { margin-left:auto; display:flex; align-items:center; gap:12px; }
+  .lock-btn { display:flex; align-items:center; gap:5px; font-size:12px; font-weight:600; padding:6px 12px; border-radius:var(--radius-sm); border:1px solid var(--border); background:var(--surface); cursor:pointer; transition:all .15s; }
+  .lock-btn.locked { color:var(--danger); border-color:#FCA5A5; background:var(--danger-light); }
+  .lock-btn.unlocked { color:var(--success); border-color:#6EE7B7; background:var(--success-light); }
+  .sync-badge { display:flex; align-items:center; gap:6px; font-size:12px; color:var(--text-secondary); }
+  .sync-dot { width:8px; height:8px; border-radius:50%; background:var(--text-muted); }
+  .sync-dot.ok { background:var(--success); } .sync-dot.busy { background:var(--warning); animation:pulse 1s infinite; } .sync-dot.err { background:var(--danger); }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.3} }
+
+  .main { max-width:1600px; margin:0 auto; padding:20px 16px; }
+  .tab-panel { display:none; } .tab-panel.active { display:block; }
+
+  .page-header { margin-bottom:16px; display:flex; align-items:flex-end; justify-content:space-between; gap:12px; flex-wrap:wrap; }
+  .page-header h1 { font-size:20px; font-weight:700; letter-spacing:-.4px; }
+  .page-header p { font-size:13px; color:var(--text-secondary); margin-top:3px; }
+  .day-picker { display:flex; align-items:center; gap:8px; }
+  .day-picker label { font-size:12px; font-weight:600; color:var(--text-secondary); }
+  .day-picker input { font-family:inherit; font-size:13px; border:1px solid var(--border); border-radius:var(--radius-sm); padding:7px 10px; background:var(--surface); }
+
+  .card { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); box-shadow:var(--shadow-sm); overflow:hidden; }
+  .card-header { padding:14px 18px; border-bottom:1px solid var(--border); display:flex; align-items:center; justify-content:space-between; gap:12px; background:var(--surface2); }
+  .card-title { font-size:13px; font-weight:600; }
+  .card-body { padding:16px 18px; }
+
+  input[type=text],input[type=number],input[type=date],input[type=password],select { font-family:inherit; font-size:13px; color:var(--text-primary); background:var(--surface); border:1px solid var(--border); border-radius:var(--radius-sm); padding:7px 9px; outline:none; transition:border-color .15s,box-shadow .15s; width:100%; }
+  input:focus,select:focus { border-color:var(--accent); box-shadow:0 0 0 3px rgba(37,99,235,.1); }
+  .input-calc { background:var(--calc-bg)!important; border-color:var(--calc-border)!important; color:var(--text-secondary)!important; cursor:default; font-family:'JetBrains Mono',monospace; font-size:12px; text-align:right; }
+  .input-payment { background:#F0FDF4!important; border-color:#86EFAC!important; color:var(--success)!important; font-family:'JetBrains Mono',monospace; font-size:12px; text-align:right; cursor:default; }
+  .input-payment-surcharge { background:#FFFBEB!important; border-color:#FCD34D!important; color:var(--warning)!important; font-family:'JetBrains Mono',monospace; font-size:12px; text-align:right; cursor:default; }
+  input:disabled, select:disabled { background:var(--surface2); color:var(--text-muted); cursor:not-allowed; opacity:.7; }
+
+  .btn { font-family:inherit; font-size:13px; font-weight:500; border:none; border-radius:var(--radius-sm); cursor:pointer; padding:8px 14px; transition:background .15s; white-space:nowrap; display:inline-flex; align-items:center; gap:5px; }
+  .btn-primary { background:var(--accent); color:#fff; } .btn-primary:hover { background:var(--accent-hover); }
+  .btn-secondary { background:var(--surface2); color:var(--text-primary); border:1px solid var(--border); } .btn-secondary:hover { background:var(--border); }
+  .btn-danger { background:var(--danger-light); color:var(--danger); } .btn-danger:hover { background:#FEE2E2; }
+  .btn-success { background:var(--success); color:#fff; } .btn-success:hover { background:#047857; }
+  .btn-sm { padding:5px 10px; font-size:12px; } .btn-icon { padding:5px 7px; }
+  .btn:disabled { opacity:.45; cursor:not-allowed; }
+
+  .settings-grid { display:grid; grid-template-columns:1fr 1fr; gap:16px; }
+  @media (max-width:640px){ .settings-grid { grid-template-columns:1fr; } }
+  .add-form { display:flex; gap:8px; margin-bottom:14px; } .add-form input { flex:1; min-width:0; }
+  .item-list { display:flex; flex-direction:column; gap:6px; min-height:40px; }
+  .item-row { display:flex; align-items:center; gap:8px; padding:8px 12px; background:var(--bg); border:1px solid var(--border); border-radius:var(--radius-sm); }
+  .item-row .name { flex:1; font-size:13px; font-weight:500; }
+  .empty-msg { font-size:12px; color:var(--text-muted); padding:12px 0; text-align:center; }
+
+  .toolbar { display:flex; gap:8px; flex-wrap:wrap; align-items:center; margin-bottom:14px; }
+
+  .table-wrap { overflow-x:auto; -webkit-overflow-scrolling:touch; border:1px solid var(--border); border-radius:var(--radius); background:var(--surface); box-shadow:var(--shadow-sm); }
+  table { width:100%; border-collapse:collapse; min-width:1600px; table-layout:fixed; }
+  thead tr { background:var(--surface2); border-bottom:2px solid var(--border); }
+  th { padding:9px 8px; text-align:left; font-size:10px; font-weight:700; color:var(--text-secondary); text-transform:uppercase; letter-spacing:.4px; white-space:nowrap; overflow:hidden; }
+  th.th-calc { background:#ECEEF1; } th.th-pay { background:#F0FDF4; color:var(--success); } th.th-pay-sur { background:#FFFBEB; color:var(--warning); }
+  tbody tr { border-bottom:1px solid var(--border); } tbody tr:last-child { border-bottom:none; } tbody tr:hover { background:#FAFBFC; }
+  td { padding:5px 5px; vertical-align:middle; overflow:hidden; }
+  td input,td select { font-size:12px; padding:6px 7px; width:100%; }
+  input[type=number]::-webkit-inner-spin-button,input[type=number]::-webkit-outer-spin-button { -webkit-appearance:none; margin:0; }
+  input[type=number] { -moz-appearance:textfield; appearance:textfield; }
+  .c-invno{width:90px} .c-date{width:125px} .c-qty{width:55px} .c-svc{width:200px} .c-price{width:95px} .c-calc{width:82px} .c-comp{width:175px} .c-pm{width:148px} .c-pay{width:82px} .c-del{width:36px;text-align:center}
+
+  tfoot tr td { background:var(--surface2); font-weight:600; font-size:12px; padding:9px 8px; border-top:2px solid var(--border-strong); font-family:'JetBrains Mono',monospace; }
+  tfoot .foot-label { font-family:'Inter',sans-serif; color:var(--text-secondary); font-size:11px; text-align:right; padding-right:10px; }
+
+  .summary-section { margin-top:20px; }
+  .summary-title { font-size:13px; font-weight:700; color:var(--text-secondary); text-transform:uppercase; letter-spacing:.5px; margin-bottom:10px; }
+  .summary-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(150px,1fr)); gap:10px; }
+  .s-card { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); padding:14px 16px; box-shadow:var(--shadow-sm); }
+  .s-card .s-label { font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:.5px; color:var(--text-secondary); margin-bottom:5px; }
+  .s-card .s-val { font-family:'JetBrains Mono',monospace; font-size:18px; font-weight:600; }
+  .s-card.blue { border-color:#93C5FD; background:var(--accent-light); } .s-card.blue .s-val { color:var(--accent); }
+  .s-card.green { border-color:#6EE7B7; background:var(--success-light); } .s-card.green .s-val { color:var(--success); }
+  .s-card.amber { border-color:#FCD34D; background:var(--warning-light); } .s-card.amber .s-val { color:var(--warning); }
+
+  /* HISTORY */
+  .history-list { display:flex; flex-direction:column; gap:8px; }
+  .history-item { display:flex; align-items:center; justify-content:space-between; gap:12px; padding:12px 16px; background:var(--surface); border:1px solid var(--border); border-radius:var(--radius-sm); }
+  .history-item .h-date { font-weight:600; font-size:13px; }
+  .history-item .h-meta { font-size:12px; color:var(--text-secondary); }
+
+  .modal-overlay { display:none; position:fixed; inset:0; background:rgba(0,0,0,.45); z-index:200; align-items:center; justify-content:center; padding:16px; }
+  .modal-overlay.open { display:flex; }
+  .modal { background:var(--surface); border-radius:var(--radius); box-shadow:0 20px 40px rgba(0,0,0,.15); width:100%; max-width:400px; }
+  .modal-header { padding:14px 18px; border-bottom:1px solid var(--border); display:flex; align-items:center; justify-content:space-between; }
+  .modal-header h2 { font-size:14px; font-weight:600; }
+  .modal-body { padding:18px; display:flex; flex-direction:column; gap:12px; }
+  .modal-body p { font-size:13px; color:var(--text-secondary); }
+  .modal-footer { padding:12px 18px; border-top:1px solid var(--border); display:flex; justify-content:flex-end; gap:8px; }
+  .form-group label { display:block; font-size:11px; font-weight:600; color:var(--text-secondary); margin-bottom:4px; text-transform:uppercase; letter-spacing:.3px; }
+
+  .badge { display:inline-flex; align-items:center; background:var(--calc-bg); border:1px solid var(--calc-border); border-radius:4px; padding:2px 7px; font-size:11px; color:var(--text-secondary); }
+  .toast { position:fixed; bottom:20px; right:20px; background:var(--text-primary); color:#fff; padding:9px 15px; border-radius:var(--radius-sm); font-size:13px; font-weight:500; z-index:999; opacity:0; transform:translateY(6px); transition:opacity .2s,transform .2s; pointer-events:none; }
+  .toast.show { opacity:1; transform:translateY(0); }
+  /* UNDO toast (interactive) */
+  .undo-bar { position:fixed; bottom:20px; left:50%; transform:translateX(-50%) translateY(20px); background:var(--text-primary); color:#fff; padding:12px 16px; border-radius:var(--radius); font-size:13px; z-index:998; display:none; align-items:center; gap:14px; box-shadow:0 8px 24px rgba(0,0,0,.2); }
+  .undo-bar.show { display:flex; transform:translateX(-50%) translateY(0); }
+  .undo-bar button { background:#fff; color:var(--text-primary); border:none; border-radius:var(--radius-sm); padding:5px 12px; font-weight:600; font-size:12px; cursor:pointer; }
+  .undo-bar .countdown { font-family:'JetBrains Mono',monospace; opacity:.7; }
+
+  .loading-overlay { position:fixed; inset:0; background:var(--bg); display:flex; align-items:center; justify-content:center; z-index:500; flex-direction:column; gap:12px; }
+  .spinner { width:32px; height:32px; border:3px solid var(--border); border-top-color:var(--accent); border-radius:50%; animation:spin .8s linear infinite; }
+  @keyframes spin { to { transform:rotate(360deg); } }
+
+  @media (max-width:640px){ .nav-brand{font-size:14px;margin-right:8px} .page-header h1{font-size:18px} .summary-grid{grid-template-columns:1fr 1fr} .tab-btn{padding:0 9px} .lock-btn span.lbl{display:none} }
+</style>
+</head>
+<body>
+
+<div class="loading-overlay" id="loading">
+  <div class="spinner"></div>
+  <div style="font-size:13px;color:var(--text-secondary)">Connecting to cloud…</div>
+</div>
+
+<nav class="nav">
+  <div class="nav-inner">
+    <div class="nav-brand">Invoice<span>Cloud</span></div>
+    <button class="tab-btn active" onclick="switchTab('invoices')">📄 Invoices</button>
+    <button class="tab-btn" onclick="switchTab('settings')">⚙️ Settings</button>
+    <button class="tab-btn" onclick="switchTab('history')">🗄 History</button>
+    <div class="nav-right">
+      <button class="lock-btn locked" id="lock-btn" onclick="toggleLock()">🔒 <span class="lbl">View only</span></button>
+      <div class="sync-badge"><span class="sync-dot" id="sync-dot"></span><span id="sync-text">Idle</span></div>
+    </div>
+  </div>
+</nav>
+
+<main class="main">
+  <div id="tab-invoices" class="tab-panel active">
+    <div class="page-header">
+      <div><h1>Invoice Manager</h1><p>Cloud-synced — open from any device, share with your manager.</p></div>
+      <div class="day-picker"><label>📅 Day</label><input type="date" id="day-input" onchange="changeDay(this.value)"></div>
+    </div>
+    <div class="toolbar">
+      <button class="btn btn-primary" id="btn-addrow" onclick="addRow()">＋ Add Row</button>
+      <button class="btn btn-secondary" onclick="exportCSV()">⬇ Export CSV</button>
+      <button class="btn btn-danger btn-sm" id="btn-clear" onclick="clearDay()">🗑 Clear This Day</button>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr>
+          <th class="c-invno">Inv No</th><th class="c-date">Date</th><th class="c-qty">Qty</th>
+          <th class="c-svc">Service</th><th class="c-price">Net/Pax</th><th class="c-calc th-calc">Net Total</th>
+          <th class="c-price">Selling/Pax</th><th class="c-calc th-calc">Selling Total</th>
+          <th class="c-calc th-calc">Profit</th><th class="c-calc th-calc">Comm 40%</th>
+          <th class="c-comp">Company</th><th class="c-pm">Payment</th>
+          <th class="c-pay th-pay">Cash 💵</th><th class="c-pay th-pay">QR 🏦</th>
+          <th class="c-pay th-pay-sur">CC +4%</th><th class="c-pay th-pay-sur">Ali Pay +4%</th><th class="c-del"></th>
+        </tr></thead>
+        <tbody id="inv-body"></tbody>
+        <tfoot id="inv-foot"></tfoot>
+      </table>
+    </div>
+    <div class="summary-section">
+      <div class="summary-title">Summary of the Day</div>
+      <div class="summary-grid">
+        <div class="s-card blue"><div class="s-label">Selling Total</div><div class="s-val" id="sum-selling">0.00</div></div>
+        <div class="s-card"><div class="s-label">Profit</div><div class="s-val" id="sum-profit">0.00</div></div>
+        <div class="s-card green"><div class="s-label">Commission 40%</div><div class="s-val" id="sum-comm">0.00</div></div>
+        <div class="s-card" style="border-color:#FCA5A5;background:#FEF2F2;"><div class="s-label">💵 Cash</div><div class="s-val" style="color:#991B1B;" id="sum-cash">0.00</div></div>
+        <div class="s-card"><div class="s-label">🏦 QR (Bank)</div><div class="s-val" id="sum-qr">0.00</div></div>
+        <div class="s-card amber"><div class="s-label">Credit Card</div><div class="s-val" id="sum-cc">0.00</div></div>
+        <div class="s-card amber"><div class="s-label">Ali Pay</div><div class="s-val" id="sum-ax">0.00</div></div>
+      </div>
+
+      <!-- COMMISSION DEDUCTION -->
+      <div style="margin-top:12px;display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
+        <div class="s-card" style="flex:1;min-width:180px;border-color:#C4B5FD;background:#F5F3FF;">
+          <div class="s-label" style="color:#7C3AED;">✂️ Commission Deduction</div>
+          <input type="text" inputmode="decimal" id="comm-deduct" placeholder="0.00"
+            style="margin-top:6px;font-family:'JetBrains Mono',monospace;font-size:18px;font-weight:600;color:#7C3AED;border:none;background:transparent;padding:0;width:100%;outline:none;"
+            oninput="updateNetComm();saveDeduction(this.value)">
+        </div>
+        <div class="s-card" style="flex:1;min-width:180px;border-color:#6EE7B7;background:#ECFDF5;">
+          <div class="s-label" style="color:#059669;">✅ Net Commission</div>
+          <div class="s-val" style="color:#059669;" id="sum-net-comm">0.00</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="tab-settings" class="tab-panel">
+    <div class="page-header"><div><h1>Settings</h1><p>Manage your services and company names.</p></div></div>
+    <div class="settings-grid">
+      <div class="card">
+        <div class="card-header"><span class="card-title">🗂 Services</span><span class="badge" id="svc-count">0</span></div>
+        <div class="card-body">
+          <div class="add-form"><input type="text" id="svc-input" placeholder="Service name…" onkeydown="if(event.key==='Enter')addService()"><button class="btn btn-primary btn-sm" onclick="addService()">Add</button></div>
+          <div class="item-list" id="svc-list"></div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-header"><span class="card-title">🏢 Companies</span><span class="badge" id="cmp-count">0</span></div>
+        <div class="card-body">
+          <div class="add-form"><input type="text" id="cmp-input" placeholder="Company name…" onkeydown="if(event.key==='Enter')addCompany()"><button class="btn btn-primary btn-sm" onclick="addCompany()">Add</button></div>
+          <div class="item-list" id="cmp-list"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="tab-history" class="tab-panel">
+    <div class="page-header"><div><h1>History &amp; Backups</h1><p>A daily snapshot is saved automatically. Restore any day if something goes wrong.</p></div>
+      <button class="btn btn-secondary btn-sm" onclick="loadBackups()">🔄 Refresh</button>
+    </div>
+    <div class="card"><div class="card-body"><div class="history-list" id="history-list"><div class="empty-msg">Loading…</div></div></div></div>
+  </div>
+</main>
+
+<!-- EDIT MODAL -->
+<div class="modal-overlay" id="edit-modal">
+  <div class="modal">
+    <div class="modal-header"><h2 id="modal-title">Edit</h2><button class="btn btn-secondary btn-sm" onclick="closeModal()">✕</button></div>
+    <div class="modal-body"><input type="hidden" id="edit-id"><input type="hidden" id="edit-type">
+      <div class="form-group"><label>Name</label><input type="text" id="edit-name"></div></div>
+    <div class="modal-footer"><button class="btn btn-secondary" onclick="closeModal()">Cancel</button><button class="btn btn-primary" onclick="saveEdit()">Save</button></div>
+  </div>
+</div>
+
+<!-- PASSWORD MODAL -->
+<div class="modal-overlay" id="pw-modal">
+  <div class="modal">
+    <div class="modal-header"><h2>🔓 Enter edit password</h2></div>
+    <div class="modal-body">
+      <p>Editing is locked to prevent accidental changes. Enter the password to edit. Anyone who edits takes responsibility for changes.</p>
+      <div class="form-group"><label>Password</label><input type="password" id="pw-input" inputmode="numeric" placeholder="••••" onkeydown="if(event.key==='Enter')submitPw()"></div>
+    </div>
+    <div class="modal-footer"><button class="btn btn-secondary" onclick="closePw()">Cancel</button><button class="btn btn-primary" onclick="submitPw()">Unlock</button></div>
+  </div>
+</div>
+
+<!-- DELETE-DAY MODAL -->
+<div class="modal-overlay" id="cleartday-modal">
+  <div class="modal">
+    <div class="modal-header"><h2>⚠️ Clear entire day</h2></div>
+    <div class="modal-body">
+      <p>This deletes <b>all rows</b> for <b id="clear-day-label"></b>. A backup is saved first, so you can restore it from History. Type <b>DELETE</b> to confirm.</p>
+      <div class="form-group"><input type="text" id="clear-confirm" placeholder="Type DELETE" oninput="document.getElementById('btn-do-clear').disabled = this.value.trim().toUpperCase()!=='DELETE'"></div>
+    </div>
+    <div class="modal-footer"><button class="btn btn-secondary" onclick="document.getElementById('cleartday-modal').classList.remove('open')">Cancel</button><button class="btn btn-danger" id="btn-do-clear" disabled onclick="doClearDay()">Delete Day</button></div>
+  </div>
+</div>
+
+<!-- DELETE-ROW MODAL -->
+<div class="modal-overlay" id="delrow-modal">
+  <div class="modal">
+    <div class="modal-header"><h2>Delete row?</h2></div>
+    <div class="modal-body"><p>Are you sure you want to remove this row? You can undo right after.</p></div>
+    <div class="modal-footer"><button class="btn btn-secondary" onclick="document.getElementById('delrow-modal').classList.remove('open')">Cancel</button><button class="btn btn-danger" onclick="doDelRow()">Delete</button></div>
+  </div>
+</div>
+
+<!-- UNDO BAR -->
+<div class="undo-bar" id="undo-bar"><span id="undo-text">Deleted.</span><button onclick="doUndo()">↩ Undo</button><span class="countdown" id="undo-count">10</span></div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const SUPABASE_URL = 'https://oquxplxfvgxxwndqvevw.supabase.co';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9xdXhwbHhmdmd4eHduZHF2ZXZ3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODIwODE1NTYsImV4cCI6MjA5NzY1NzU1Nn0.IjSh1pVE8S6d3ulW_Of5uIIIl9HxRmKeYr63q7ti4kg';
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+const EDIT_PASSWORD = '0000';
+const PAYMENT_METHODS = ['Cash','Credit Card','Ali Pay','QR'];
+
+let services=[], companies=[], rows=[];
+let currentDay = new Date().toISOString().slice(0,10);
+let isUnlocked = false;
+let undoStack = null, undoTimer = null, undoInterval = null;
+let pendingDelRowId = null;
+
+// ── SYNC
+function setSync(s){ const d=document.getElementById('sync-dot'), t=document.getElementById('sync-text'); d.className='sync-dot '+(s==='ok'?'ok':s==='busy'?'busy':s==='err'?'err':''); t.textContent=s==='ok'?'Synced':s==='busy'?'Saving…':s==='err'?'Error':'Idle'; }
+function fmt(n){ return isNaN(n)||n===null?'0.00':(+n).toFixed(2); }
+function esc(s){ return String(s||'').replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+function qcsv(s){ return '"'+String(s||'').replace(/"/g,'""')+'"'; }
+function toast(m){ const t=document.getElementById('toast'); t.textContent=m; t.classList.add('show'); setTimeout(()=>t.classList.remove('show'),2000); }
+
+// ── LOCK / PASSWORD
+function toggleLock(){
+  if (isUnlocked){ isUnlocked=false; applyLock(); toast('🔒 Locked — view only'); logAudit('lock',''); }
+  else { document.getElementById('pw-input').value=''; document.getElementById('pw-modal').classList.add('open'); setTimeout(()=>document.getElementById('pw-input').focus(),100); }
+}
+function closePw(){ document.getElementById('pw-modal').classList.remove('open'); }
+function submitPw(){
+  const v = document.getElementById('pw-input').value.trim();
+  if (v === EDIT_PASSWORD){ isUnlocked=true; closePw(); applyLock(); toast('🔓 Unlocked — you can edit'); logAudit('unlock',''); }
+  else { toast('Wrong password'); document.getElementById('pw-input').value=''; }
+}
+function applyLock(){
+  const btn = document.getElementById('lock-btn');
+  if (isUnlocked){ btn.className='lock-btn unlocked'; btn.innerHTML='🔓 <span class="lbl">Editing</span>'; }
+  else { btn.className='lock-btn locked'; btn.innerHTML='🔒 <span class="lbl">View only</span>'; }
+  // disable/enable editing controls
+  document.querySelectorAll('#tab-invoices input, #tab-invoices select, #tab-settings input, #tab-settings button, #tab-invoices button').forEach(el=>{
+    if (el.id==='day-input') return; // day picker always usable
+    if (el.closest('.day-picker')) return;
+    if (el.tagName==='BUTTON' && (el.onclick && (el.getAttribute('onclick')||'').includes('exportCSV'))) { el.disabled=false; return; }
+    el.disabled = !isUnlocked;
+  });
+  renderServices(); renderCompanies(); renderTable();
+}
+function requireUnlock(){ if(!isUnlocked){ toast('🔒 Enter password to edit'); toggleLock(); return false; } return true; }
+
+// ── AUDIT
+async function logAudit(action, detail){ try{ await sb.from('audit_log').insert({action, detail}); }catch(e){} }
+
+// ── INIT
+async function init(){
+  document.getElementById('day-input').value = currentDay;
+  try {
+    await loadServices(); await loadCompanies(); await loadRows();
+    document.getElementById('loading').style.display='none';
+    applyLock(); setSync('ok');
+  } catch(e){ console.error(e); document.getElementById('loading').innerHTML='<div style="color:var(--danger);font-size:13px;text-align:center;padding:20px">⚠️ Connection failed.<br>Check internet and refresh.</div>'; setSync('err'); }
+}
+
+// ── SERVICES
+async function loadServices(){ const {data,error}=await sb.from('services').select('*').order('name'); if(error)throw error; services=data||[]; renderServices(); }
+async function addService(){ if(!requireUnlock())return; const v=document.getElementById('svc-input').value.trim(); if(!v){toast('Enter a service name');return;} setSync('busy'); const {error}=await sb.from('services').insert({name:v}); if(error){toast('Error');setSync('err');return;} document.getElementById('svc-input').value=''; await loadServices(); renderTable(); setSync('ok'); toast('Service added ✓'); logAudit('add_service',v); }
+async function delService(id){ if(!requireUnlock())return; setSync('busy'); await sb.from('services').delete().eq('id',id); await loadServices(); renderTable(); setSync('ok'); logAudit('del_service',String(id)); }
+function renderServices(){ const list=document.getElementById('svc-list'); document.getElementById('svc-count').textContent=services.length; if(!services.length){ list.innerHTML='<div class="empty-msg">No services yet.</div>'; return; } list.innerHTML=services.map(s=>`<div class="item-row"><span class="name">${esc(s.name)}</span><button class="btn btn-secondary btn-sm btn-icon" ${isUnlocked?'':'disabled'} onclick="openEdit('svc',${s.id})">✏️</button><button class="btn btn-danger btn-sm btn-icon" ${isUnlocked?'':'disabled'} onclick="delService(${s.id})">🗑</button></div>`).join(''); }
+
+// ── COMPANIES
+async function loadCompanies(){ const {data,error}=await sb.from('companies').select('*').order('name'); if(error)throw error; companies=data||[]; renderCompanies(); }
+async function addCompany(){ if(!requireUnlock())return; const v=document.getElementById('cmp-input').value.trim(); if(!v){toast('Enter a company name');return;} setSync('busy'); const {error}=await sb.from('companies').insert({name:v}); if(error){toast('Error');setSync('err');return;} document.getElementById('cmp-input').value=''; await loadCompanies(); renderTable(); setSync('ok'); toast('Company added ✓'); logAudit('add_company',v); }
+async function delCompany(id){ if(!requireUnlock())return; setSync('busy'); await sb.from('companies').delete().eq('id',id); await loadCompanies(); renderTable(); setSync('ok'); logAudit('del_company',String(id)); }
+function renderCompanies(){ const list=document.getElementById('cmp-list'); document.getElementById('cmp-count').textContent=companies.length; if(!companies.length){ list.innerHTML='<div class="empty-msg">No companies yet.</div>'; return; } list.innerHTML=companies.map(c=>`<div class="item-row"><span class="name">${esc(c.name)}</span><button class="btn btn-secondary btn-sm btn-icon" ${isUnlocked?'':'disabled'} onclick="openEdit('cmp',${c.id})">✏️</button><button class="btn btn-danger btn-sm btn-icon" ${isUnlocked?'':'disabled'} onclick="delCompany(${c.id})">🗑</button></div>`).join(''); }
+
+// ── MODAL EDIT
+function openEdit(type,id){ if(!requireUnlock())return; const list=type==='svc'?services:companies; const item=list.find(x=>x.id===id); if(!item)return; document.getElementById('edit-id').value=id; document.getElementById('edit-type').value=type; document.getElementById('edit-name').value=item.name; document.getElementById('modal-title').textContent=type==='svc'?'Edit Service':'Edit Company'; document.getElementById('edit-modal').classList.add('open'); }
+function closeModal(){ document.getElementById('edit-modal').classList.remove('open'); }
+async function saveEdit(){ const id=parseInt(document.getElementById('edit-id').value); const type=document.getElementById('edit-type').value; const name=document.getElementById('edit-name').value.trim(); if(!name){toast('Name cannot be empty');return;} setSync('busy'); const table=type==='svc'?'services':'companies'; await sb.from(table).update({name}).eq('id',id); closeModal(); if(type==='svc')await loadServices(); else await loadCompanies(); renderTable(); setSync('ok'); toast('Saved ✓'); logAudit('edit_'+type,name); }
+
+// ── ROWS
+async function loadRows(){ const {data,error}=await sb.from('invoice_rows').select('*').eq('date',currentDay).order('id'); if(error)throw error; rows=data||[]; renderTable(); await loadDeduction(); }
+async function changeDay(d){ currentDay=d; document.getElementById('day-input').value=d; setSync('busy'); await loadRows(); setSync('ok'); }
+async function addRow(){ if(!requireUnlock())return; setSync('busy'); const {data,error}=await sb.from('invoice_rows').insert({date:currentDay,qty:1}).select(); if(error){toast('Error');setSync('err');return;} rows.push(data[0]); renderTable(); setSync('ok'); await autoBackup(); }
+
+// row delete with confirm + undo
+function delRow(id){ if(!requireUnlock())return; pendingDelRowId=id; document.getElementById('delrow-modal').classList.add('open'); }
+async function doDelRow(){
+  document.getElementById('delrow-modal').classList.remove('open');
+  const id = pendingDelRowId; pendingDelRowId=null;
+  const row = rows.find(r=>r.id===id); if(!row) return;
+  const snapshot = {...row};
+  setSync('busy');
+  await sb.from('invoice_rows').delete().eq('id',id);
+  rows = rows.filter(r=>r.id!==id);
+  renderTable(); setSync('ok'); logAudit('del_row',String(id));
+  showUndo('Row deleted.', async ()=>{
+    setSync('busy');
+    const ins = {...snapshot}; delete ins.id;
+    const {data} = await sb.from('invoice_rows').insert(ins).select();
+    if(data&&data[0]) rows.push(data[0]);
+    rows.sort((a,b)=>a.id-b.id);
+    renderTable(); setSync('ok'); toast('Restored ✓');
+  });
+}
+
+// debounced live save
+let saveTimers={};
+function setFieldLive(id,field,val){ if(!isUnlocked)return; const r=rows.find(r=>r.id===id); if(r)r[field]=val; recalcOnly(id); setSync('busy'); clearTimeout(saveTimers[id+field]); saveTimers[id+field]=setTimeout(async()=>{ const patch={}; patch[field]=(val===''&&(field==='qty'||field==='net_pax'||field==='sell_pax'))?null:val; await sb.from('invoice_rows').update(patch).eq('id',id); setSync('ok'); autoBackup(); },600); }
+async function setField(id,field,val){ if(!isUnlocked)return; const r=rows.find(r=>r.id===id); if(r)r[field]=val; setSync('busy'); const patch={}; patch[field]=val===''?null:val; await sb.from('invoice_rows').update(patch).eq('id',id); renderTable(); setSync('ok'); autoBackup(); }
+
+// ── CALC
+function calcRow(r){ const qty=parseFloat(r.qty)||1, netPax=parseFloat(r.net_pax)||0, sellPax=parseFloat(r.sell_pax)||0; const netTotal=netPax*qty, sellTotal=sellPax*qty, profit=sellTotal-netTotal, comm=profit*0.4; const pm=r.payment_method; let cash=0,qr=0,cc=0,ax=0; if(pm==='Cash')cash=sellTotal; if(pm==='QR')qr=sellTotal; if(pm==='Credit Card')cc=sellTotal*1.04; if(pm==='Ali Pay'||pm==='Ali Express')ax=sellTotal*1.04; return {qty,netPax,sellPax,netTotal,sellTotal,profit,comm,cash,qr,cc,ax}; }
+function buildOpts(list,sel){ return '<option value="">— Select —</option>'+list.map(x=>`<option value="${x.id}" ${x.id==sel?'selected':''}>${esc(x.name)}</option>`).join(''); }
+function buildPmOpts(sel){ if(sel==='Ali Express')sel='Ali Pay'; return '<option value="">— Select —</option>'+PAYMENT_METHODS.map(m=>`<option value="${m}" ${m===sel?'selected':''}>${m}</option>`).join(''); }
+
+function renderTable(){
+  const tbody=document.getElementById('inv-body'), tfoot=document.getElementById('inv-foot');
+  const dis = isUnlocked?'':'disabled';
+  if(!rows.length){ tbody.innerHTML=`<tr><td colspan="17" style="text-align:center;padding:28px;color:var(--text-muted);font-size:13px">No rows for this day${isUnlocked?' — click <b>+ Add Row</b>.':' (locked).'}</td></tr>`; tfoot.innerHTML=''; updateTotalsOnly(); return; }
+  tbody.innerHTML=rows.map(r=>{ const c=calcRow(r); return `<tr data-id="${r.id}">
+    <td class="c-invno"><input type="text" ${dis} value="${esc(r.invno)}" placeholder="INV-001" oninput="setFieldLive(${r.id},'invno',this.value)"></td>
+    <td class="c-date"><input type="date" ${dis} value="${esc(r.date)}" onchange="setField(${r.id},'date',this.value)"></td>
+    <td class="c-qty"><input type="text" inputmode="numeric" ${dis} value="${esc(r.qty)}" placeholder="1" oninput="setFieldLive(${r.id},'qty',this.value)" style="text-align:right"></td>
+    <td class="c-svc"><select ${dis} onchange="setField(${r.id},'service_id',this.value)">${buildOpts(services,r.service_id)}</select></td>
+    <td class="c-price"><input type="text" inputmode="decimal" ${dis} value="${esc(r.net_pax)}" placeholder="0.00" oninput="setFieldLive(${r.id},'net_pax',this.value)" style="text-align:right"></td>
+    <td class="c-calc"><input class="input-calc recalc" readonly value="${fmt(c.netTotal)}"></td>
+    <td class="c-price"><input type="text" inputmode="decimal" ${dis} value="${esc(r.sell_pax)}" placeholder="0.00" oninput="setFieldLive(${r.id},'sell_pax',this.value)" style="text-align:right"></td>
+    <td class="c-calc"><input class="input-calc recalc" readonly value="${fmt(c.sellTotal)}"></td>
+    <td class="c-calc"><input class="input-calc recalc" readonly value="${fmt(c.profit)}"></td>
+    <td class="c-calc"><input class="input-calc recalc" readonly value="${fmt(c.comm)}"></td>
+    <td class="c-comp"><select ${dis} onchange="setField(${r.id},'company_id',this.value)">${buildOpts(companies,r.company_id)}</select></td>
+    <td class="c-pm"><select ${dis} onchange="setField(${r.id},'payment_method',this.value)">${buildPmOpts(r.payment_method)}</select></td>
+    <td class="c-pay"><input class="${c.cash?'input-payment':'input-calc'} recalc" readonly value="${c.cash?fmt(c.cash):''}"></td>
+    <td class="c-pay"><input class="${c.qr?'input-payment':'input-calc'} recalc" readonly value="${c.qr?fmt(c.qr):''}"></td>
+    <td class="c-pay"><input class="${c.cc?'input-payment-surcharge':'input-calc'} recalc" readonly value="${c.cc?fmt(c.cc):''}"></td>
+    <td class="c-pay"><input class="${c.ax?'input-payment-surcharge':'input-calc'} recalc" readonly value="${c.ax?fmt(c.ax):''}"></td>
+    <td class="c-del"><button class="btn btn-danger btn-sm btn-icon" ${dis} onclick="delRow(${r.id})">✕</button></td>
+  </tr>`; }).join('');
+  updateTotalsOnly();
+}
+function recalcOnly(id){ const r=rows.find(r=>r.id===id); if(!r)return; const c=calcRow(r); const tr=document.querySelector(`tr[data-id="${id}"]`); if(!tr)return; const cells=tr.querySelectorAll('.recalc'); const vals=[fmt(c.netTotal),fmt(c.sellTotal),fmt(c.profit),fmt(c.comm),c.cash?fmt(c.cash):'',c.qr?fmt(c.qr):'',c.cc?fmt(c.cc):'',c.ax?fmt(c.ax):'']; const cls=['input-calc','input-calc','input-calc','input-calc',c.cash?'input-payment':'input-calc',c.qr?'input-payment':'input-calc',c.cc?'input-payment-surcharge':'input-calc',c.ax?'input-payment-surcharge':'input-calc']; cells.forEach((inp,i)=>{inp.value=vals[i];inp.className=cls[i]+' recalc';}); updateTotalsOnly(); }
+// ── DEDUCTION
+async function loadDeduction(){
+  try {
+    const {data} = await sb.from('daily_deductions').select('amount').eq('deduction_date', currentDay).single();
+    const val = data ? data.amount : 0;
+    document.getElementById('comm-deduct').value = val > 0 ? val : '';
+    updateNetComm();
+  } catch(e){ document.getElementById('comm-deduct').value=''; updateNetComm(); }
+}
+
+let deductTimer = null;
+async function saveDeduction(val){
+  clearTimeout(deductTimer);
+  deductTimer = setTimeout(async ()=>{
+    const amount = parseFloat(val) || 0;
+    await sb.from('daily_deductions').upsert({ deduction_date: currentDay, amount }, { onConflict: 'deduction_date' });
+  }, 600);
+}
+
+function updateNetComm(){
+  const comm = parseFloat(document.getElementById('sum-comm').textContent) || 0;
+  const deduct = parseFloat(document.getElementById('comm-deduct').value) || 0;
+  document.getElementById('sum-net-comm').textContent = fmt(comm - deduct);
+}
+
+function updateTotalsOnly(){ let tNet=0,tSell=0,tP=0,tC=0,tCash=0,tQR=0,tCC=0,tAX=0; rows.forEach(r=>{const c=calcRow(r); tNet+=c.netTotal;tSell+=c.sellTotal;tP+=c.profit;tC+=c.comm;tCash+=c.cash;tQR+=c.qr;tCC+=c.cc;tAX+=c.ax;}); const foot=document.getElementById('inv-foot'); if(rows.length){ foot.innerHTML=`<tr><td colspan="5" class="foot-label">Grand Total</td><td>${fmt(tNet)}</td><td></td><td>${fmt(tSell)}</td><td>${fmt(tP)}</td><td>${fmt(tC)}</td><td colspan="2"></td><td>${fmt(tCash)}</td><td>${fmt(tQR)}</td><td>${fmt(tCC)}</td><td>${fmt(tAX)}</td><td></td></tr>`; } else foot.innerHTML=''; document.getElementById('sum-selling').textContent=fmt(tSell); document.getElementById('sum-profit').textContent=fmt(tP); document.getElementById('sum-comm').textContent=fmt(tC); document.getElementById('sum-cash').textContent=fmt(tCash); document.getElementById('sum-qr').textContent=fmt(tQR); document.getElementById('sum-cc').textContent=fmt(tCC); document.getElementById('sum-ax').textContent=fmt(tAX); updateNetComm(); }
+
+// ── TABS
+function switchTab(tab){ document.querySelectorAll('.tab-panel').forEach(p=>p.classList.remove('active')); document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active')); document.getElementById('tab-'+tab).classList.add('active'); const idx={invoices:0,settings:1,history:2}[tab]; document.querySelectorAll('.tab-btn')[idx].classList.add('active'); if(tab==='history')loadBackups(); }
+
+// ── CLEAR DAY (type DELETE)
+function clearDay(){ if(!requireUnlock())return; document.getElementById('clear-day-label').textContent=currentDay; document.getElementById('clear-confirm').value=''; document.getElementById('btn-do-clear').disabled=true; document.getElementById('cleartday-modal').classList.add('open'); }
+async function doClearDay(){
+  document.getElementById('cleartday-modal').classList.remove('open');
+  const snapshot = JSON.parse(JSON.stringify(rows));
+  await autoBackup(); // ensure backup exists
+  setSync('busy');
+  await sb.from('invoice_rows').delete().eq('date',currentDay);
+  rows=[]; renderTable(); setSync('ok'); logAudit('clear_day',currentDay);
+  showUndo('Day cleared.', async ()=>{
+    setSync('busy');
+    for(const r of snapshot){ const ins={...r}; delete ins.id; await sb.from('invoice_rows').insert(ins); }
+    await loadRows(); setSync('ok'); toast('Day restored ✓');
+  });
+}
+
+// ── UNDO
+function showUndo(msg, undoFn){
+  undoStack = undoFn;
+  document.getElementById('undo-text').textContent = msg;
+  const bar=document.getElementById('undo-bar'); bar.classList.add('show');
+  let n=10; document.getElementById('undo-count').textContent=n;
+  clearInterval(undoInterval); clearTimeout(undoTimer);
+  undoInterval=setInterval(()=>{ n--; document.getElementById('undo-count').textContent=n; if(n<=0)clearInterval(undoInterval); },1000);
+  undoTimer=setTimeout(()=>{ bar.classList.remove('show'); undoStack=null; },10000);
+}
+async function doUndo(){ if(undoStack){ const fn=undoStack; undoStack=null; document.getElementById('undo-bar').classList.remove('show'); clearTimeout(undoTimer); clearInterval(undoInterval); await fn(); } }
+
+// ── AUTO BACKUP (daily snapshot)
+let backupTimer=null;
+function autoBackup(){ clearTimeout(backupTimer); backupTimer=setTimeout(doBackup, 1500); }
+async function doBackup(){
+  try {
+    const snapshot = JSON.parse(JSON.stringify(rows));
+    // upsert one backup per day: delete today's then insert
+    await sb.from('backups').delete().eq('backup_date', currentDay);
+    await sb.from('backups').insert({ backup_date: currentDay, snapshot });
+  } catch(e){ console.error('backup failed', e); }
+}
+
+// ── HISTORY / RESTORE
+async function loadBackups(){
+  const list=document.getElementById('history-list'); list.innerHTML='<div class="empty-msg">Loading…</div>';
+  const {data,error}=await sb.from('backups').select('*').order('backup_date',{ascending:false});
+  if(error){ list.innerHTML='<div class="empty-msg">Error loading backups.</div>'; return; }
+  if(!data||!data.length){ list.innerHTML='<div class="empty-msg">No backups yet. They are created as you edit.</div>'; return; }
+  list.innerHTML=data.map(b=>{ const cnt=Array.isArray(b.snapshot)?b.snapshot.length:0; const when=new Date(b.created_at).toLocaleString(); return `<div class="history-item"><div><div class="h-date">📅 ${b.backup_date}</div><div class="h-meta">${cnt} row(s) · last saved ${when}</div></div><div style="display:flex;gap:8px"><button class="btn btn-secondary btn-sm" onclick="changeDay('${b.backup_date}');switchTab('invoices')">View</button><button class="btn btn-success btn-sm" onclick="restoreBackup('${b.backup_date}')">↩ Restore</button></div></div>`; }).join('');
+}
+async function restoreBackup(date){
+  if(!requireUnlock())return;
+  if(!confirm('Restore backup for '+date+'? This replaces current rows for that day with the saved snapshot.'))return;
+  setSync('busy');
+  const {data}=await sb.from('backups').select('*').eq('backup_date',date).single();
+  if(!data){ toast('Backup not found'); setSync('err'); return; }
+  await sb.from('invoice_rows').delete().eq('date',date);
+  for(const r of data.snapshot){ const ins={...r}; delete ins.id; ins.date=date; await sb.from('invoice_rows').insert(ins); }
+  currentDay=date; document.getElementById('day-input').value=date;
+  await loadRows(); switchTab('invoices'); setSync('ok'); toast('Restored ✓'); logAudit('restore',date);
+}
+
+// ── EXPORT
+function exportCSV(){ if(!rows.length){toast('No rows to export');return;} const h=['Inv No','Date','Qty','Service','Net/Pax','Net Total','Selling/Pax','Selling Total','Profit','Comm 40%','Company','Payment','Cash','QR','CC +4%','Ali Pay +4%']; const lines=[h.join(',')]; rows.forEach(r=>{ const c=calcRow(r); const svc=services.find(s=>s.id==r.service_id); const cmp=companies.find(x=>x.id==r.company_id); lines.push([qcsv(r.invno),qcsv(r.date),c.qty,qcsv(svc?svc.name:''),fmt(c.netPax),fmt(c.netTotal),fmt(c.sellPax),fmt(c.sellTotal),fmt(c.profit),fmt(c.comm),qcsv(cmp?cmp.name:''),qcsv(r.payment_method),c.cash?fmt(c.cash):'',c.qr?fmt(c.qr):'',c.cc?fmt(c.cc):'',c.ax?fmt(c.ax):''].join(',')); }); const blob=new Blob([lines.join('\n')],{type:'text/csv'}); const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='invoices_'+currentDay+'.csv'; a.click(); URL.revokeObjectURL(a.href); toast('CSV exported ✓'); }
+
+init();
+</script>
+</body>
+</html>
