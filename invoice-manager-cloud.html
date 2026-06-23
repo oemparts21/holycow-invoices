@@ -3,7 +3,12 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Invoice Manager — Cloud</title>
+<title>Services Charge</title>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#2563EB">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Services Charge">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
@@ -513,6 +518,10 @@ async function restoreBackup(date){
 function exportCSV(){ if(!rows.length){toast('No rows to export');return;} const h=['Inv No','Date','Qty','Service','Net/Pax','Net Total','Selling/Pax','Selling Total','Profit','Comm 40%','Company','Payment','Cash','QR','CC +4%','Ali Pay +4%']; const lines=[h.join(',')]; rows.forEach(r=>{ const c=calcRow(r); const svc=services.find(s=>s.id==r.service_id); const cmp=companies.find(x=>x.id==r.company_id); lines.push([qcsv(r.invno),qcsv(r.date),c.qty,qcsv(svc?svc.name:''),fmt(c.netPax),fmt(c.netTotal),fmt(c.sellPax),fmt(c.sellTotal),fmt(c.profit),fmt(c.comm),qcsv(cmp?cmp.name:''),qcsv(r.payment_method),c.cash?fmt(c.cash):'',c.qr?fmt(c.qr):'',c.cc?fmt(c.cc):'',c.ax?fmt(c.ax):''].join(',')); }); const blob=new Blob([lines.join('\n')],{type:'text/csv'}); const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='invoices_'+currentDay+'.csv'; a.click(); URL.revokeObjectURL(a.href); toast('CSV exported ✓'); }
 
 init();
+
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('sw.js');
+}
 </script>
 </body>
 </html>

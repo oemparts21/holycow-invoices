@@ -1,0 +1,22 @@
+{
+  "name": "Services Charge",
+  "short_name": "Services Charge",
+  "description": "Invoice Manager for Holy Cow Travel",
+  "start_url": "/invoice-manager-cloud.html",
+  "display": "standalone",
+  "background_color": "#F7F8FA",
+  "theme_color": "#2563EB",
+  "orientation": "landscape",
+  "icons": [
+    {
+      "src": "https://via.placeholder.com/192x192/2563EB/FFFFFF?text=SC",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "https://via.placeholder.com/512x512/2563EB/FFFFFF?text=SC",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}
