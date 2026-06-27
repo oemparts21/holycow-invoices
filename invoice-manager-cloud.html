@@ -89,7 +89,35 @@
   td input,td select { font-size:12px; padding:6px 7px; width:100%; }
   input[type=number]::-webkit-inner-spin-button,input[type=number]::-webkit-outer-spin-button { -webkit-appearance:none; margin:0; }
   input[type=number] { -moz-appearance:textfield; appearance:textfield; }
-  .c-invno{width:90px} .c-date{width:125px} .c-qty{width:55px} .c-svc{width:200px} .c-price{width:95px} .c-calc{width:82px} .c-comp{width:175px} .c-pm{width:148px} .c-pay{width:82px} .c-del{width:36px;text-align:center}
+  .c-invno{width:90px} .c-date{width:125px} .c-qty{width:55px} .c-svc{width:200px} .c-price{width:95px} .c-calc{width:82px} .c-comp{width:175px} .c-pm{width:220px} .c-pay{width:82px} .c-del{width:36px;text-align:center}
+
+  /* DYNAMIC PAYMENT COLUMNS */
+  .col-pay-hidden { display:none; }
+
+  /* NOTES SECTION */
+  .notes-section { margin-top:16px; }
+  .notes-title { font-size:13px; font-weight:700; color:var(--text-secondary); text-transform:uppercase; letter-spacing:.5px; margin-bottom:8px; }
+  .notes-list { display:flex; flex-direction:column; gap:6px; }
+  .note-item { display:flex; align-items:flex-start; gap:10px; padding:10px 14px; background:var(--warning-light); border:1px solid #FCD34D; border-radius:var(--radius-sm); font-size:12px; color:#78350F; line-height:1.5; }
+  .note-item.deposit { background:#FDF2F8; border-color:#F9A8D4; color:#9D174D; }
+  .note-icon { font-size:14px; flex:none; margin-top:1px; }
+  .pay-popup-overlay { display:none; position:fixed; inset:0; background:rgba(0,0,0,.5); z-index:300; align-items:center; justify-content:center; padding:16px; }
+  .pay-popup-overlay.open { display:flex; }
+  .pay-popup { background:var(--surface); border-radius:var(--radius); box-shadow:0 20px 40px rgba(0,0,0,.2); width:100%; max-width:520px; }
+  .pay-popup-header { padding:14px 18px; border-bottom:1px solid var(--border); display:flex; align-items:center; justify-content:space-between; }
+  .pay-popup-header h2 { font-size:14px; font-weight:600; }
+  .pay-popup-body { padding:16px 18px; display:flex; flex-direction:column; gap:10px; }
+  .pay-popup-footer { padding:12px 18px; border-top:1px solid var(--border); display:flex; justify-content:space-between; align-items:center; gap:8px; }
+  .pay-split-row { display:flex; gap:8px; align-items:center; }
+  .pay-split-row select { flex:1.5; }
+  .pay-split-row input { flex:1; }
+  .pay-split-row .btn-icon { flex:none; }
+  .pay-summary { font-size:11px; color:var(--text-secondary); font-family:'JetBrains Mono',monospace; }
+  .pay-remaining { font-size:12px; font-weight:600; }
+  .pay-remaining.ok { color:var(--success); }
+  .pay-remaining.over { color:var(--danger); }
+  .pay-remaining.under { color:var(--warning); }
+  .pay-cell-summary { font-size:11px; font-family:'JetBrains Mono',monospace; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; color:var(--text-secondary); cursor:pointer; padding:5px 7px; background:var(--surface2); border:1px solid var(--border); border-radius:var(--radius-sm); width:100%; text-align:left; }
 
   tfoot tr td { background:var(--surface2); font-weight:600; font-size:12px; padding:9px 8px; border-top:2px solid var(--border-strong); font-family:'JetBrains Mono',monospace; }
   tfoot .foot-label { font-family:'Inter',sans-serif; color:var(--text-secondary); font-size:11px; text-align:right; padding-right:10px; }
@@ -160,7 +188,7 @@
   <div id="tab-invoices" class="tab-panel active">
     <div class="page-header">
       <div><h1>Invoice Manager</h1><p>Cloud-synced — open from any device, share with your manager.</p></div>
-      <div class="day-picker"><label>📅 Day</label><input type="date" id="day-input" onchange="changeDay(this.value)"></div>
+      <div class="day-picker"><label>📅 View Day</label><input type="date" id="day-input" onchange="changeDay(this.value)"></div>
     </div>
     <div class="toolbar">
       <button class="btn btn-primary" id="btn-addrow" onclick="addRow()">＋ Add Row</button>
@@ -175,8 +203,16 @@
           <th class="c-price">Selling/Pax</th><th class="c-calc th-calc">Selling Total</th>
           <th class="c-calc th-calc">Profit</th><th class="c-calc th-calc">Comm 40%</th>
           <th class="c-comp">Company</th><th class="c-pm">Payment</th>
-          <th class="c-pay th-pay">Cash 💵</th><th class="c-pay th-pay">QR 🏦</th>
-          <th class="c-pay th-pay-sur">CC +4%</th><th class="c-pay th-pay-sur">Ali Pay +4%</th><th class="c-del"></th>
+          <th class="c-pay th-pay col-pay" id="th-Cash">Cash 💵</th>
+          <th class="c-pay th-pay col-pay" id="th-QR">QR 🏦</th>
+          <th class="c-pay th-pay-sur col-pay" id="th-CreditCard">CC +4%</th>
+          <th class="c-pay th-pay-sur col-pay" id="th-AliPay">Ali +4%</th>
+          <th class="c-pay th-pay col-pay" id="th-PayOnTour">POT</th>
+          <th class="c-pay th-pay col-pay" id="th-ByAmmy">Ammy</th>
+          <th class="c-pay th-pay col-pay" id="th-ByFatin">Fatin</th>
+          <th class="c-pay th-pay col-pay" id="th-ByPBOE">P BOE</th>
+          <th class="c-pay th-pay col-pay" id="th-Deposit">Deposit</th>
+          <th class="c-del"></th>
         </tr></thead>
         <tbody id="inv-body"></tbody>
         <tfoot id="inv-foot"></tfoot>
@@ -188,10 +224,15 @@
         <div class="s-card blue"><div class="s-label">Selling Total</div><div class="s-val" id="sum-selling">0.00</div></div>
         <div class="s-card"><div class="s-label">Profit</div><div class="s-val" id="sum-profit">0.00</div></div>
         <div class="s-card green"><div class="s-label">Commission 40%</div><div class="s-val" id="sum-comm">0.00</div></div>
-        <div class="s-card" style="border-color:#FCA5A5;background:#FEF2F2;"><div class="s-label">💵 Cash</div><div class="s-val" style="color:#991B1B;" id="sum-cash">0.00</div></div>
+        <div class="s-card" style="border-color:#FCA5A5;background:#FEF2F2;"><div class="s-label">💵 Cash + Deposit</div><div class="s-val" style="color:#991B1B;" id="sum-cash">0.00</div></div>
         <div class="s-card"><div class="s-label">🏦 QR (Bank)</div><div class="s-val" id="sum-qr">0.00</div></div>
         <div class="s-card amber"><div class="s-label">Credit Card</div><div class="s-val" id="sum-cc">0.00</div></div>
         <div class="s-card amber"><div class="s-label">Ali Pay</div><div class="s-val" id="sum-ax">0.00</div></div>
+        <div class="s-card" style="border-color:#93C5FD;background:#EFF6FF;"><div class="s-label">Pay On Tour</div><div class="s-val" style="color:#1D4ED8;" id="sum-pot">0.00</div></div>
+        <div class="s-card" style="border-color:#C4B5FD;background:#F5F3FF;"><div class="s-label">By Ammy</div><div class="s-val" style="color:#7C3AED;" id="sum-ammy">0.00</div></div>
+        <div class="s-card" style="border-color:#F9A8D4;background:#FDF2F8;"><div class="s-label">By Fatin</div><div class="s-val" style="color:#9D174D;" id="sum-fatin">0.00</div></div>
+        <div class="s-card" style="border-color:#6EE7B7;background:#ECFDF5;"><div class="s-label">By P BOE</div><div class="s-val" style="color:#065F46;" id="sum-pboe">0.00</div></div>
+        <div class="s-card" style="border-color:#FCD34D;background:#FFFBEB;display:none" id="sum-deposit-card"><div class="s-label">Deposit (included in Cash)</div><div class="s-val" style="color:#92400E;" id="sum-deposit">0.00</div></div>
       </div>
 
       <!-- COMMISSION DEDUCTION -->
@@ -207,6 +248,12 @@
           <div class="s-val" style="color:#059669;" id="sum-net-comm">0.00</div>
         </div>
       </div>
+    </div>
+
+    <!-- NOTES SECTION -->
+    <div class="notes-section" id="notes-section" style="display:none">
+      <div class="notes-title">📋 Notes</div>
+      <div class="notes-list" id="notes-list"></div>
     </div>
   </div>
 
@@ -281,6 +328,27 @@
   </div>
 </div>
 
+<!-- SPLIT PAYMENT POPUP -->
+<div class="pay-popup-overlay" id="pay-popup">
+  <div class="pay-popup">
+    <div class="pay-popup-header">
+      <h2>💳 Split Payment</h2>
+      <button class="btn btn-secondary btn-sm" onclick="closePayPopup()">✕</button>
+    </div>
+    <div class="pay-popup-body" id="pay-popup-body"></div>
+    <div class="pay-popup-footer">
+      <div>
+        <div class="pay-summary">Selling Total: <span id="pp-total">0.00</span></div>
+        <div class="pay-remaining" id="pp-remaining"></div>
+      </div>
+      <div style="display:flex;gap:8px;">
+        <button class="btn btn-secondary btn-sm" onclick="addPaySplit()">＋ Add</button>
+        <button class="btn btn-primary" onclick="savePayPopup()">Save</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <!-- UNDO BAR -->
 <div class="undo-bar" id="undo-bar"><span id="undo-text">Deleted.</span><button onclick="doUndo()">↩ Undo</button><span class="countdown" id="undo-count">10</span></div>
 
@@ -291,7 +359,7 @@ const SUPABASE_URL = 'https://oquxplxfvgxxwndqvevw.supabase.co';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9xdXhwbHhmdmd4eHduZHF2ZXZ3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODIwODE1NTYsImV4cCI6MjA5NzY1NzU1Nn0.IjSh1pVE8S6d3ulW_Of5uIIIl9HxRmKeYr63q7ti4kg';
 const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 const EDIT_PASSWORD = '0000';
-const PAYMENT_METHODS = ['Cash','Credit Card','Ali Pay','QR'];
+const PAYMENT_METHODS = ['Cash','Credit Card','Ali Pay','QR','Pay On Tour','By Ammy','By Fatin','By P BOE','Deposit'];
 
 let services=[], companies=[], rows=[];
 let currentDay = new Date().toISOString().slice(0,10);
@@ -365,7 +433,7 @@ async function saveEdit(){ const id=parseInt(document.getElementById('edit-id').
 // ── ROWS
 async function loadRows(){ const {data,error}=await sb.from('invoice_rows').select('*').eq('date',currentDay).order('id'); if(error)throw error; rows=data||[]; renderTable(); await loadDeduction(); }
 async function changeDay(d){ currentDay=d; document.getElementById('day-input').value=d; setSync('busy'); await loadRows(); setSync('ok'); }
-async function addRow(){ if(!requireUnlock())return; setSync('busy'); const {data,error}=await sb.from('invoice_rows').insert({date:currentDay,qty:1}).select(); if(error){toast('Error');setSync('err');return;} rows.push(data[0]); renderTable(); setSync('ok'); await autoBackup(); }
+async function addRow(){ if(!requireUnlock())return; setSync('busy'); const {data,error}=await sb.from('invoice_rows').insert({date:currentDay, row_date:currentDay, qty:1}).select(); if(error){toast('Error');setSync('err');return;} rows.push(data[0]); renderTable(); setSync('ok'); await autoBackup(); }
 
 // row delete with confirm + undo
 function delRow(id){ if(!requireUnlock())return; pendingDelRowId=id; document.getElementById('delrow-modal').classList.add('open'); }
@@ -394,17 +462,53 @@ function setFieldLive(id,field,val){ if(!isUnlocked)return; const r=rows.find(r=
 async function setField(id,field,val){ if(!isUnlocked)return; const r=rows.find(r=>r.id===id); if(r)r[field]=val; setSync('busy'); const patch={}; patch[field]=val===''?null:val; await sb.from('invoice_rows').update(patch).eq('id',id); renderTable(); setSync('ok'); autoBackup(); }
 
 // ── CALC
-function calcRow(r){ const qty=parseFloat(r.qty)||1, netPax=parseFloat(r.net_pax)||0, sellPax=parseFloat(r.sell_pax)||0; const netTotal=netPax*qty, sellTotal=sellPax*qty, profit=sellTotal-netTotal, comm=profit*0.4; const pm=r.payment_method; let cash=0,qr=0,cc=0,ax=0; if(pm==='Cash')cash=sellTotal; if(pm==='QR')qr=sellTotal; if(pm==='Credit Card')cc=sellTotal*1.04; if(pm==='Ali Pay'||pm==='Ali Express')ax=sellTotal*1.04; return {qty,netPax,sellPax,netTotal,sellTotal,profit,comm,cash,qr,cc,ax}; }
+function calcRow(r){
+  const qty=parseFloat(r.qty)||1, netPax=parseFloat(r.net_pax)||0, sellPax=parseFloat(r.sell_pax)||0;
+  const netTotal=netPax*qty, sellTotal=sellPax*qty, profit=sellTotal-netTotal, comm=profit*0.4;
+  let cash=0,qr=0,cc=0,ax=0,pot=0,ammy=0,fatin=0,pboe=0,deposit=0;
+
+  // parse payments — sellTotal is now computed above ✓
+  let splits = parseSplits(r.payment_method, r.payment_splits, sellTotal);
+  splits.forEach(sp=>{
+    const amt = parseFloat(sp.amount)||0;
+    const m = sp.method;
+    if(m==='Cash') cash+=amt;
+    else if(m==='QR') qr+=amt;
+    else if(m==='Credit Card') cc+=amt*1.04;
+    else if(m==='Ali Pay'||m==='Ali Express') ax+=amt*1.04;
+    else if(m==='Pay On Tour') pot+=amt;
+    else if(m==='By Ammy') ammy+=amt;
+    else if(m==='By Fatin') fatin+=amt;
+    else if(m==='By P BOE') pboe+=amt;
+    else if(m==='Deposit') deposit+=amt;
+  });
+  return {qty,netPax,sellPax,netTotal,sellTotal,profit,comm,cash,qr,cc,ax,pot,ammy,fatin,pboe,deposit,splits};
+}
+
+function parseSplits(pm, ps, sellTotal){
+  // New: payment_splits is a JSON string array [{method,amount}]
+  if(ps && ps !== 'null'){ try{ const arr=JSON.parse(ps); if(Array.isArray(arr)&&arr.length) return arr; }catch(e){} }
+  // Legacy: single payment_method string — use sellTotal passed in
+  if(!pm || pm==='' || pm==='null') return [];
+  if(pm==='Ali Express') pm='Ali Pay';
+  // Only return legacy split if sellTotal > 0
+  if(!sellTotal || sellTotal <= 0) return [{method:pm, amount:''}];
+  return [{method:pm, amount:String(sellTotal)}];
+}
 function buildOpts(list,sel){ return '<option value="">— Select —</option>'+list.map(x=>`<option value="${x.id}" ${x.id==sel?'selected':''}>${esc(x.name)}</option>`).join(''); }
-function buildPmOpts(sel){ if(sel==='Ali Express')sel='Ali Pay'; return '<option value="">— Select —</option>'+PAYMENT_METHODS.map(m=>`<option value="${m}" ${m===sel?'selected':''}>${m}</option>`).join(''); }
+
+function splitSummary(splits, sellTotal){
+  if(!splits||!splits.length) return '<span style="color:var(--text-muted);font-size:11px;">— none —</span>';
+  return splits.map(s=>`${s.method}: ${fmt(parseFloat(s.amount)||0)}`).join(' + ');
+}
 
 function renderTable(){
   const tbody=document.getElementById('inv-body'), tfoot=document.getElementById('inv-foot');
   const dis = isUnlocked?'':'disabled';
-  if(!rows.length){ tbody.innerHTML=`<tr><td colspan="17" style="text-align:center;padding:28px;color:var(--text-muted);font-size:13px">No rows for this day${isUnlocked?' — click <b>+ Add Row</b>.':' (locked).'}</td></tr>`; tfoot.innerHTML=''; updateTotalsOnly(); return; }
+  if(!rows.length){ tbody.innerHTML=`<tr><td colspan="22" style="text-align:center;padding:28px;color:var(--text-muted);font-size:13px">No rows for this day${isUnlocked?' — click <b>+ Add Row</b>.':' (locked).'}</td></tr>`; tfoot.innerHTML=''; updateTotalsOnly(); return; }
   tbody.innerHTML=rows.map(r=>{ const c=calcRow(r); return `<tr data-id="${r.id}">
     <td class="c-invno"><input type="text" ${dis} value="${esc(r.invno)}" placeholder="INV-001" oninput="setFieldLive(${r.id},'invno',this.value)"></td>
-    <td class="c-date"><input type="date" ${dis} value="${esc(r.date)}" onchange="setField(${r.id},'date',this.value)"></td>
+    <td class="c-date"><input type="date" ${dis} value="${esc(r.row_date||r.date)}" onchange="setField(${r.id},'row_date',this.value)"></td>
     <td class="c-qty"><input type="text" inputmode="numeric" ${dis} value="${esc(r.qty)}" placeholder="1" oninput="setFieldLive(${r.id},'qty',this.value)" style="text-align:right"></td>
     <td class="c-svc"><select ${dis} onchange="setField(${r.id},'service_id',this.value)">${buildOpts(services,r.service_id)}</select></td>
     <td class="c-price"><input type="text" inputmode="decimal" ${dis} value="${esc(r.net_pax)}" placeholder="0.00" oninput="setFieldLive(${r.id},'net_pax',this.value)" style="text-align:right"></td>
@@ -414,16 +518,30 @@ function renderTable(){
     <td class="c-calc"><input class="input-calc recalc" readonly value="${fmt(c.profit)}"></td>
     <td class="c-calc"><input class="input-calc recalc" readonly value="${fmt(c.comm)}"></td>
     <td class="c-comp"><select ${dis} onchange="setField(${r.id},'company_id',this.value)">${buildOpts(companies,r.company_id)}</select></td>
-    <td class="c-pm"><select ${dis} onchange="setField(${r.id},'payment_method',this.value)">${buildPmOpts(r.payment_method)}</select></td>
-    <td class="c-pay"><input class="${c.cash?'input-payment':'input-calc'} recalc" readonly value="${c.cash?fmt(c.cash):''}"></td>
-    <td class="c-pay"><input class="${c.qr?'input-payment':'input-calc'} recalc" readonly value="${c.qr?fmt(c.qr):''}"></td>
-    <td class="c-pay"><input class="${c.cc?'input-payment-surcharge':'input-calc'} recalc" readonly value="${c.cc?fmt(c.cc):''}"></td>
-    <td class="c-pay"><input class="${c.ax?'input-payment-surcharge':'input-calc'} recalc" readonly value="${c.ax?fmt(c.ax):''}"></td>
+    <td class="c-pm"><button class="pay-cell-summary" ${dis} onclick="openPayPopup(${r.id})">${splitSummary(c.splits,c.sellTotal)}</button></td>
+    <td class="c-pay td-pay-Cash" style="display:none"><input class="${c.cash?'input-payment':'input-calc'} recalc" readonly value="${c.cash?fmt(c.cash):''}"></td>
+    <td class="c-pay td-pay-QR" style="display:none"><input class="${c.qr?'input-payment':'input-calc'} recalc" readonly value="${c.qr?fmt(c.qr):''}"></td>
+    <td class="c-pay td-pay-CreditCard" style="display:none"><input class="${c.cc?'input-payment-surcharge':'input-calc'} recalc" readonly value="${c.cc?fmt(c.cc):''}"></td>
+    <td class="c-pay td-pay-AliPay" style="display:none"><input class="${c.ax?'input-payment-surcharge':'input-calc'} recalc" readonly value="${c.ax?fmt(c.ax):''}"></td>
+    <td class="c-pay td-pay-PayOnTour" style="display:none"><input class="${c.pot?'input-payment':'input-calc'} recalc" readonly value="${c.pot?fmt(c.pot):''}"></td>
+    <td class="c-pay td-pay-ByAmmy" style="display:none"><input class="${c.ammy?'input-payment':'input-calc'} recalc" readonly value="${c.ammy?fmt(c.ammy):''}"></td>
+    <td class="c-pay td-pay-ByFatin" style="display:none"><input class="${c.fatin?'input-payment':'input-calc'} recalc" readonly value="${c.fatin?fmt(c.fatin):''}"></td>
+    <td class="c-pay td-pay-ByPBOE" style="display:none"><input class="${c.pboe?'input-payment':'input-calc'} recalc" readonly value="${c.pboe?fmt(c.pboe):''}"></td>
+    <td class="c-pay td-pay-Deposit" style="display:none"><input class="${c.deposit?'input-payment':'input-calc'} recalc" readonly value="${c.deposit?fmt(c.deposit):''}"></td>
     <td class="c-del"><button class="btn btn-danger btn-sm btn-icon" ${dis} onclick="delRow(${r.id})">✕</button></td>
   </tr>`; }).join('');
   updateTotalsOnly();
 }
-function recalcOnly(id){ const r=rows.find(r=>r.id===id); if(!r)return; const c=calcRow(r); const tr=document.querySelector(`tr[data-id="${id}"]`); if(!tr)return; const cells=tr.querySelectorAll('.recalc'); const vals=[fmt(c.netTotal),fmt(c.sellTotal),fmt(c.profit),fmt(c.comm),c.cash?fmt(c.cash):'',c.qr?fmt(c.qr):'',c.cc?fmt(c.cc):'',c.ax?fmt(c.ax):'']; const cls=['input-calc','input-calc','input-calc','input-calc',c.cash?'input-payment':'input-calc',c.qr?'input-payment':'input-calc',c.cc?'input-payment-surcharge':'input-calc',c.ax?'input-payment-surcharge':'input-calc']; cells.forEach((inp,i)=>{inp.value=vals[i];inp.className=cls[i]+' recalc';}); updateTotalsOnly(); }
+function recalcOnly(id){
+  const r=rows.find(r=>r.id===id); if(!r)return;
+  const c=calcRow(r);
+  const tr=document.querySelector(`tr[data-id="${id}"]`); if(!tr)return;
+  const cells=tr.querySelectorAll('.recalc');
+  const vals=[fmt(c.netTotal),fmt(c.sellTotal),fmt(c.profit),fmt(c.comm),c.cash?fmt(c.cash):'',c.qr?fmt(c.qr):'',c.cc?fmt(c.cc):'',c.ax?fmt(c.ax):'',c.pot?fmt(c.pot):'',c.ammy?fmt(c.ammy):'',c.fatin?fmt(c.fatin):'',c.pboe?fmt(c.pboe):'',c.deposit?fmt(c.deposit):''];
+  const cls=['input-calc','input-calc','input-calc','input-calc',c.cash?'input-payment':'input-calc',c.qr?'input-payment':'input-calc',c.cc?'input-payment-surcharge':'input-calc',c.ax?'input-payment-surcharge':'input-calc',c.pot?'input-payment':'input-calc',c.ammy?'input-payment':'input-calc',c.fatin?'input-payment':'input-calc',c.pboe?'input-payment':'input-calc',c.deposit?'input-payment':'input-calc'];
+  cells.forEach((inp,i)=>{inp.value=vals[i];inp.className=cls[i]+' recalc';});
+  updateTotalsOnly();
+}
 // ── DEDUCTION
 async function loadDeduction(){
   try {
@@ -449,7 +567,109 @@ function updateNetComm(){
   document.getElementById('sum-net-comm').textContent = fmt(comm - deduct);
 }
 
-function updateTotalsOnly(){ let tNet=0,tSell=0,tP=0,tC=0,tCash=0,tQR=0,tCC=0,tAX=0; rows.forEach(r=>{const c=calcRow(r); tNet+=c.netTotal;tSell+=c.sellTotal;tP+=c.profit;tC+=c.comm;tCash+=c.cash;tQR+=c.qr;tCC+=c.cc;tAX+=c.ax;}); const foot=document.getElementById('inv-foot'); if(rows.length){ foot.innerHTML=`<tr><td colspan="5" class="foot-label">Grand Total</td><td>${fmt(tNet)}</td><td></td><td>${fmt(tSell)}</td><td>${fmt(tP)}</td><td>${fmt(tC)}</td><td colspan="2"></td><td>${fmt(tCash)}</td><td>${fmt(tQR)}</td><td>${fmt(tCC)}</td><td>${fmt(tAX)}</td><td></td></tr>`; } else foot.innerHTML=''; document.getElementById('sum-selling').textContent=fmt(tSell); document.getElementById('sum-profit').textContent=fmt(tP); document.getElementById('sum-comm').textContent=fmt(tC); document.getElementById('sum-cash').textContent=fmt(tCash); document.getElementById('sum-qr').textContent=fmt(tQR); document.getElementById('sum-cc').textContent=fmt(tCC); document.getElementById('sum-ax').textContent=fmt(tAX); updateNetComm(); }
+// payment method key → column id suffix
+const PAY_COL_MAP = {
+  'Cash':'Cash','QR':'QR','Credit Card':'CreditCard',
+  'Ali Pay':'AliPay','Ali Express':'AliPay',
+  'Pay On Tour':'PayOnTour','By Ammy':'ByAmmy',
+  'By Fatin':'ByFatin','By P BOE':'ByPBOE','Deposit':'Deposit'
+};
+const ALL_PAY_COLS = ['Cash','QR','CreditCard','AliPay','PayOnTour','ByAmmy','ByFatin','ByPBOE','Deposit'];
+
+function updateTotalsOnly(){
+  let tNet=0,tSell=0,tP=0,tC=0,tCash=0,tQR=0,tCC=0,tAX=0,tPOT=0,tAmmy=0,tFatin=0,tPboe=0,tDeposit=0;
+  // track which pay cols are active
+  const activeCols = new Set();
+
+  rows.forEach(r=>{
+    const c=calcRow(r);
+    tNet+=c.netTotal; tSell+=c.sellTotal; tP+=c.profit; tC+=c.comm;
+    tCash+=c.cash; tQR+=c.qr; tCC+=c.cc; tAX+=c.ax;
+    tPOT+=c.pot; tAmmy+=c.ammy; tFatin+=c.fatin; tPboe+=c.pboe; tDeposit+=c.deposit;
+    c.splits.forEach(sp=>{
+      const key = PAY_COL_MAP[sp.method];
+      if(key && (parseFloat(sp.amount)||0)>0) activeCols.add(key);
+    });
+  });
+
+  // show/hide columns dynamically
+  ALL_PAY_COLS.forEach(col=>{
+    const show = activeCols.has(col);
+    const th = document.getElementById('th-'+col);
+    if(th) th.style.display = show ? '' : 'none';
+    document.querySelectorAll(`.td-pay-${col}`).forEach(td=>td.style.display = show ? '' : 'none');
+  });
+
+  // footer
+  const foot=document.getElementById('inv-foot');
+  if(rows.length){
+    const payTds = ALL_PAY_COLS.map(col=>{
+      const show = activeCols.has(col);
+      const val = col==='Cash'?tCash:col==='QR'?tQR:col==='CreditCard'?tCC:col==='AliPay'?tAX:col==='PayOnTour'?tPOT:col==='ByAmmy'?tAmmy:col==='ByFatin'?tFatin:col==='ByPBOE'?tPboe:tDeposit;
+      return `<td style="${show?'':'display:none'}">${fmt(val)}</td>`;
+    }).join('');
+    foot.innerHTML=`<tr><td colspan="5" class="foot-label">Grand Total</td><td>${fmt(tNet)}</td><td></td><td>${fmt(tSell)}</td><td>${fmt(tP)}</td><td>${fmt(tC)}</td><td colspan="2"></td>${payTds}<td></td></tr>`;
+  } else foot.innerHTML='';
+
+  // summary cards
+  document.getElementById('sum-selling').textContent=fmt(tSell);
+  document.getElementById('sum-profit').textContent=fmt(tP);
+  document.getElementById('sum-comm').textContent=fmt(tC);
+  document.getElementById('sum-cash').textContent=fmt(tCash+tDeposit); // deposit merged with cash
+  document.getElementById('sum-qr').textContent=fmt(tQR);
+  document.getElementById('sum-cc').textContent=fmt(tCC);
+  document.getElementById('sum-ax').textContent=fmt(tAX);
+  document.getElementById('sum-pot').textContent=fmt(tPOT);
+  document.getElementById('sum-ammy').textContent=fmt(tAmmy);
+  document.getElementById('sum-fatin').textContent=fmt(tFatin);
+  document.getElementById('sum-pboe').textContent=fmt(tPboe);
+  document.getElementById('sum-deposit').textContent=fmt(tDeposit);
+  // show deposit breakdown card only if there are deposits
+  document.getElementById('sum-deposit-card').style.display = tDeposit>0 ? '' : 'none';
+
+  updateNetComm();
+  renderNotes();
+}
+
+function renderNotes(){
+  const notes = [];
+  rows.forEach(r=>{
+    const invLabel = r.invno ? `Invoice #${r.invno}` : 'A row';
+    const rowDate = r.row_date || r.date;
+
+    // Note 1: different date from view day
+    if(rowDate && rowDate !== currentDay){
+      const vd = formatDateNice(currentDay);
+      const rd = formatDateNice(rowDate);
+      notes.push({type:'date', text:`${invLabel}: Booking date ${vd} — Service date ${rd}`});
+    }
+
+    // Note 2: deposit payment
+    const c = calcRow(r);
+    const hasDeposit = c.splits.some(sp=>sp.method==='Deposit' && (parseFloat(sp.amount)||0)>0);
+    if(hasDeposit){
+      const depAmt = c.splits.filter(sp=>sp.method==='Deposit').reduce((s,sp)=>s+(parseFloat(sp.amount)||0),0);
+      const remaining = c.sellTotal - depAmt;
+      notes.push({type:'deposit', text:`${invLabel}: Amount ${fmt(depAmt)} is a deposit payment. Remaining balance due: ${fmt(remaining)}.`});
+    }
+  });
+
+  const section = document.getElementById('notes-section');
+  const list = document.getElementById('notes-list');
+  if(!notes.length){ section.style.display='none'; return; }
+  section.style.display='';
+  list.innerHTML = notes.map(n=>`
+    <div class="note-item ${n.type==='deposit'?'deposit':''}">
+      <span class="note-icon">${n.type==='deposit'?'💰':'📅'}</span>
+      <span>${n.text}</span>
+    </div>`).join('');
+}
+
+function formatDateNice(d){
+  if(!d) return '';
+  const dt = new Date(d+'T00:00:00');
+  return dt.toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'});
+}
 
 // ── TABS
 function switchTab(tab){ document.querySelectorAll('.tab-panel').forEach(p=>p.classList.remove('active')); document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active')); document.getElementById('tab-'+tab).classList.add('active'); const idx={invoices:0,settings:1,history:2}[tab]; document.querySelectorAll('.tab-btn')[idx].classList.add('active'); if(tab==='history')loadBackups(); }
@@ -515,13 +735,74 @@ async function restoreBackup(date){
 }
 
 // ── EXPORT
-function exportCSV(){ if(!rows.length){toast('No rows to export');return;} const h=['Inv No','Date','Qty','Service','Net/Pax','Net Total','Selling/Pax','Selling Total','Profit','Comm 40%','Company','Payment','Cash','QR','CC +4%','Ali Pay +4%']; const lines=[h.join(',')]; rows.forEach(r=>{ const c=calcRow(r); const svc=services.find(s=>s.id==r.service_id); const cmp=companies.find(x=>x.id==r.company_id); lines.push([qcsv(r.invno),qcsv(r.date),c.qty,qcsv(svc?svc.name:''),fmt(c.netPax),fmt(c.netTotal),fmt(c.sellPax),fmt(c.sellTotal),fmt(c.profit),fmt(c.comm),qcsv(cmp?cmp.name:''),qcsv(r.payment_method),c.cash?fmt(c.cash):'',c.qr?fmt(c.qr):'',c.cc?fmt(c.cc):'',c.ax?fmt(c.ax):''].join(',')); }); const blob=new Blob([lines.join('\n')],{type:'text/csv'}); const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='invoices_'+currentDay+'.csv'; a.click(); URL.revokeObjectURL(a.href); toast('CSV exported ✓'); }
+function exportCSV(){ if(!rows.length){toast('No rows to export');return;} const h=['Inv No','View Day','Row Date','Qty','Service','Net/Pax','Net Total','Selling/Pax','Selling Total','Profit','Comm 40%','Company','Payment','Cash','QR','CC +4%','Ali Pay +4%','Pay On Tour','By Ammy','By Fatin','By P BOE','Deposit']; const lines=[h.join(',')]; rows.forEach(r=>{ const c=calcRow(r); const svc=services.find(s=>s.id==r.service_id); const cmp=companies.find(x=>x.id==r.company_id); const pmSummary=c.splits.map(s=>s.method+':'+s.amount).join(' + '); lines.push([qcsv(r.invno),qcsv(r.date),qcsv(r.row_date||r.date),c.qty,qcsv(svc?svc.name:''),fmt(c.netPax),fmt(c.netTotal),fmt(c.sellPax),fmt(c.sellTotal),fmt(c.profit),fmt(c.comm),qcsv(cmp?cmp.name:''),qcsv(pmSummary),c.cash?fmt(c.cash):'',c.qr?fmt(c.qr):'',c.cc?fmt(c.cc):'',c.ax?fmt(c.ax):'',c.pot?fmt(c.pot):'',c.ammy?fmt(c.ammy):'',c.fatin?fmt(c.fatin):'',c.pboe?fmt(c.pboe):'',c.deposit?fmt(c.deposit):''].join(',')); }); const blob=new Blob([lines.join('\n')],{type:'text/csv'}); const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='invoices_'+currentDay+'.csv'; a.click(); URL.revokeObjectURL(a.href); toast('CSV exported ✓'); }
+
+// ── SPLIT PAYMENT POPUP
+let ppRowId = null;
+let ppSplits = [];
+
+function openPayPopup(rowId){
+  if(!requireUnlock()) return;
+  ppRowId = rowId;
+  const r = rows.find(x=>x.id===rowId);
+  if(!r) return;
+  const c = calcRow(r);
+  ppSplits = c.splits.length ? JSON.parse(JSON.stringify(c.splits)) : [{method:'Cash', amount:''}];
+  document.getElementById('pp-total').textContent = fmt(c.sellTotal);
+  renderPayPopup();
+  document.getElementById('pay-popup').classList.add('open');
+}
+
+function closePayPopup(){
+  document.getElementById('pay-popup').classList.remove('open');
+  ppRowId = null; ppSplits = [];
+}
+
+function renderPayPopup(){
+  const body = document.getElementById('pay-popup-body');
+  body.innerHTML = ppSplits.map((sp,i)=>`
+    <div class="pay-split-row">
+      <select onchange="ppSplits[${i}].method=this.value;renderPayPopup()">
+        ${PAYMENT_METHODS.map(m=>`<option value="${m}" ${m===sp.method?'selected':''}>${m}</option>`).join('')}
+      </select>
+      <input type="text" inputmode="decimal" placeholder="Amount" value="${sp.amount}"
+        oninput="ppSplits[${i}].amount=this.value;updatePpRemaining()">
+      ${ppSplits.length>1?`<button class="btn btn-danger btn-sm btn-icon" onclick="ppSplits.splice(${i},1);renderPayPopup()">✕</button>`:'<span style="width:32px"></span>'}
+    </div>`).join('');
+  updatePpRemaining();
+}
+
+function addPaySplit(){
+  ppSplits.push({method:'Cash', amount:''});
+  renderPayPopup();
+}
+
+function updatePpRemaining(){
+  const r = rows.find(x=>x.id===ppRowId); if(!r) return;
+  const c = calcRow(r);
+  const total = c.sellTotal;
+  const used = ppSplits.reduce((s,sp)=>s+(parseFloat(sp.amount)||0), 0);
+  const diff = total - used;
+  const el = document.getElementById('pp-remaining');
+  if(Math.abs(diff)<0.01){ el.textContent='✅ Fully allocated'; el.className='pay-remaining ok'; }
+  else if(diff>0){ el.textContent=`⚠ Remaining: ${fmt(diff)}`; el.className='pay-remaining under'; }
+  else { el.textContent=`⚠ Over by: ${fmt(-diff)}`; el.className='pay-remaining over'; }
+}
+
+async function savePayPopup(){
+  if(!ppRowId) return;
+  const valid = ppSplits.filter(sp=>sp.method&&(parseFloat(sp.amount)||0)>0);
+  if(!valid.length){ toast('Add at least one payment'); return; }
+  const splitsJson = JSON.stringify(valid);
+  setSync('busy');
+  await sb.from('invoice_rows').update({payment_splits: splitsJson, payment_method: null}).eq('id', ppRowId);
+  const r = rows.find(x=>x.id===ppRowId);
+  if(r){ r.payment_splits = splitsJson; r.payment_method = null; }
+  closePayPopup();
+  renderTable(); setSync('ok'); autoBackup(); toast('Payment saved ✓');
+}
 
 init();
-
-if ('serviceWorker' in navigator) {
-  navigator.serviceWorker.register('sw.js');
-}
 </script>
 </body>
 </html>
